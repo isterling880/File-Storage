@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local File System with Upload</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            background-color: #f4f7f6; /* Light background */
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: #007bff; /* Blue */
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.8em;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px; /* Increased max width */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .path-display {
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .path-display span {
+             color: #007bff; /* Highlight current folder */
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .controls input[type="text"] {
+            flex-grow: 1; /* Allow input to take space */
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+            outline: none;
+        }
+
+        .controls button {
+            padding: 8px 15px;
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.2s ease;
+            font-family: 'Inter', sans-serif;
+        }
+
+        #backButton {
+             background-color: #ffc107; /* Yellow */
+        }
+        #backButton:hover {
+             background-color: #e0a800;
+        }
+         #backButton:disabled {
+             background-color: #e9ecef;
+             cursor: not-allowed;
+         }
+
+
+        #createFolderButton {
+            background-color: #28a745; /* Green */
+            color: white;
+        }
+        #createFolderButton:hover {
+            background-color: #218838;
+        }
+
+        #createFileButton {
+            background-color: #17a2b8; /* Cyan */
+            color: white;
+        }
+        #createFileButton:hover {
+            background-color: #138496;
+        }
+
+        .upload-file-container { /* Container for file input */
+            position: relative;
+            display: inline-block;
+        }
+
+        .upload-file-container input[type="file"] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0; /* Hide the actual input */
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .upload-file-container button {
+             /* Style the visible button */
+             padding: 8px 15px;
+             font-size: 1em;
+             cursor: pointer;
+             border: none;
+             border-radius: 5px;
+             transition: background-color 0.2s ease;
+             font-family: 'Inter', sans-serif;
+             background-color: #6f42c1; /* Purple */
+             color: white;
+        }
+         .upload-file-container button:hover {
+             background-color: #5a35a1;
+         }
+
+
+        .file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .file-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            cursor: pointer; /* Indicate clickable */
+            transition: background-color 0.1s ease;
+        }
+
+        .file-list li:last-child {
+            border-bottom: none; /* No border on last item */
+        }
+
+        .file-list li:hover {
+            background-color: #e9ecef;
+        }
+
+        .file-list li .item-name {
+             flex-grow: 1; /* Allow name to take space */
+             margin-right: 10px;
+             word-break: break-all; /* Break long names */
+        }
+
+         .file-list li .item-name strong {
+             margin-right: 5px; /* Space between icon and name */
+         }
+
+        .file-list li .actions button {
+            padding: 4px 8px;
+            font-size: 0.8em;
+            margin-left: 5px;
+            background-color: #dc3545; /* Red for delete */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+         .file-list li .actions button:hover {
+             background-color: #c82333;
+         }
+
+        /* File details and version list */
+        #fileDetails {
+            margin-top: 15px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            display: none; /* Hidden by default */
+            background-color: #f8f9fa; /* Light background */
+        }
+
+        #fileDetails h3 {
+            margin-top: 0;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+
+        #versionsList {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #versionsList li {
+            background-color: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+            flex-wrap: wrap; /* Allow actions to wrap */
+        }
+
+        #versionsList li .version-info {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+
+        #versionsList li .version-actions {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            margin-top: 5px; /* Space above actions if wrapped */
+        }
+
+        #versionsList li .version-actions button {
+            padding: 3px 6px;
+            font-size: 0.7em;
+            cursor: pointer;
+            border: none;
+            border-radius: 3px;
+            transition: background-color 0.2s ease;
+            font-family: 'Inter', sans-serif;
+        }
+
+        #versionsList li .version-actions .load-btn {
+            background-color: #17a2b8; /* Cyan */
+            color: white;
+        }
+        #versionsList li .version-actions .load-btn:hover {
+            background-color: #138496;
+        }
+
+         #versionsList li .version-actions .open-browser-btn {
+            background-color: #6610f2; /* Purple */
+            color: white;
+        }
+         #versionsList li .version-actions .open-browser-btn:hover {
+            background-color: #520dc2;
+         }
+
+         #versionsList li .version-actions .download-btn { /* New Download button */
+            background-color: #007bff; /* Blue */
+            color: white;
+         }
+         #versionsList li .version-actions .download-btn:hover {
+            background-color: #0056b3;
+         }
+
+
+        #versionsList li .version-actions .delete-btn {
+            background-color: #dc3545; /* Red */
+            color: white;
+        }
+        #versionsList li .version-actions .delete-btn:hover {
+            background-color: #c82333;
+        }
+
+
+        /* File content editor */
+        #fileContentEditor {
+             width: 100%;
+             min-height: 200px;
+             padding: 10px;
+             border: 1px solid #ccc;
+             border-radius: 5px;
+             font-size: 1em;
+             margin-top: 15px;
+             display: none; /* Hidden by default */
+             resize: vertical;
+             font-family: 'Inter', sans-serif;
+        }
+
+        #saveFileContentButton {
+             display: none; /* Hidden by default */
+             margin-top: 10px;
+             padding: 8px 15px;
+             background-color: #28a745; /* Green */
+             color: white;
+             border: none;
+             border-radius: 5px;
+             cursor: pointer;
+             transition: background-color 0.2s ease;
+             font-family: 'Inter', sans-serif;
+        }
+        #saveFileContentButton:hover {
+             background-color: #218838;
+        }
+
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.5em;
+            }
+            .container {
+                padding: 15px;
+            }
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+             .controls input[type="text"], .controls button, .upload-file-container button {
+                width: 100%; /* Full width controls */
+                box-sizing: border-box;
+             }
+             .file-list li {
+                flex-direction: column; /* Stack name and actions */
+                align-items: flex-start;
+             }
+             .file-list li .actions {
+                margin-top: 5px; /* Space above actions */
+             }
+             .file-list li .actions button {
+                margin-left: 0;
+                margin-right: 5px; /* Space between delete buttons */
+             }
+             #fileDetails {
+                padding: 10px;
+             }
+             #fileDetails h3 {
+                font-size: 1.1em;
+             }
+             #versionsList li {
+                flex-direction: column;
+                align-items: flex-start;
+             }
+             #versionsList li .version-actions {
+                margin-top: 5px;
+             }
+             #versionsList li .version-actions button {
+                 margin-left: 0;
+                 margin-right: 5px;
+             }
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Local File System</h1>
+
+    <div class="container">
+        <div id="pathDisplay" class="path-display">Current Path: <span>/</span></div>
+
+        <div class="controls">
+            <button id="backButton" disabled>Back</button>
+            <input type="text" id="newItemName" placeholder="Enter name">
+            <button id="createFolderButton">Create Folder</button>
+            <button id="createFileButton">Create Text File</button>
+             <div class="upload-file-container">
+                 <button>Upload File</button>
+                 <input type="file" id="uploadFileInput" multiple>
+             </div>
+        </div>
+
+        <ul id="fileList" class="file-list">
+            </ul>
+
+        <div id="fileDetails">
+            <h3 id="fileNameDisplay"></h3>
+            <ul id="versionsList">
+                </ul>
+        </div>
+
+
+        <textarea id="fileContentEditor" placeholder="Edit file content..."></textarea>
+        <button id="saveFileContentButton">Save File Content</button>
+
+    </div>
+
+    <script>
+        const pathDisplay = document.getElementById('pathDisplay');
+        const backButton = document.getElementById('backButton');
+        const newItemNameInput = document.getElementById('newItemName');
+        const createFolderButton = document.getElementById('createFolderButton');
+        const createFileButton = document.getElementById('createFileButton');
+        const uploadFileInput = document.getElementById('uploadFileInput');
+        const fileListElement = document.getElementById('fileList');
+        const fileDetailsElement = document.getElementById('fileDetails');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const versionsListElement = document.getElementById('versionsList');
+        const fileContentEditor = document.getElementById('fileContentEditor');
+        const saveFileContentButton = document.getElementById('saveFileContentButton');
+
+        const FILE_SYSTEM_STORAGE_KEY = 'localFileSystem';
+        const BROWSER_LOAD_KEY = 'browserLoadContent'; // Key for passing content to browser
+
+        // --- Data Structure ---
+        // Represents the file system tree.
+        // Items are objects with a 'type' property ('folder' or 'file').
+        // Folders have a 'children' object.
+        // Files have a 'versions' array of { content: string (text or base64), timestamp: string, originalFileName: string, originalFileType: string } objects.
+        let fileSystem = {
+            type: 'folder', // Root is always a folder
+            children: {}
+        };
+
+        // --- State Variables ---
+        // An array representing the current path from the root.
+        // e.g., ['documents', 'projects'] means we are inside /documents/projects
+        let currentPath = [];
+
+        // Variable to hold the name of the file currently being viewed/edited
+        let activeFileName = null;
+
+
+        // --- Local Storage Functions ---
+        function loadFileSystem() {
+            try {
+                const savedFileSystem = localStorage.getItem(FILE_SYSTEM_STORAGE_KEY);
+                // Parse JSON, default to initial structure if nothing saved or error
+                // Ensure loaded object has the correct structure, especially for older saves
+                const parsed = savedFileSystem ? JSON.parse(savedFileSystem) : { type: 'folder', children: {} };
+
+                // Basic migration/check for older structures if needed
+                if (!parsed.type || !parsed.children) {
+                     console.warn("Loaded file system has unexpected structure, starting fresh.");
+                     fileSystem = { type: 'folder', children: {} };
+                } else {
+                     fileSystem = parsed;
+                }
+
+                console.log('File system loaded:', fileSystem);
+            } catch (e) {
+                console.error('Error loading file system from localStorage:', e);
+                fileSystem = { type: 'folder', children: {} }; // Start with empty if loading fails
+            }
+        }
+
+        function saveFileSystem() {
+            try {
+                localStorage.setItem(FILE_SYSTEM_STORAGE_KEY, JSON.stringify(fileSystem));
+                console.log('File system saved.');
+            } catch (e) {
+                console.error('Error saving file system to localStorage:', e);
+                // Could add a user-facing message here
+            }
+        }
+
+        // Function to set content for the browser to load
+        function setBrowserLoadContent(content) {
+             try {
+                 localStorage.setItem(BROWSER_LOAD_KEY, content);
+                 console.log('Content set for browser load.');
+             } catch (e) {
+                 console.error('Error setting browser load content:', e);
+             }
+        }
+
+
+        // --- File System Operations ---
+
+        // Function to get the current directory object based on currentPath
+        function getCurrentDirectory() {
+            let currentDir = fileSystem;
+            for (const folderName of currentPath) {
+                // Check if the current item is a folder and exists
+                if (currentDir.children && currentDir.children[folderName] && currentDir.children[folderName].type === 'folder') {
+                    currentDir = currentDir.children[folderName];
+                } else {
+                    // This shouldn't happen if currentPath is valid, but as a safeguard
+                    console.error("Invalid path in getCurrentDirectory");
+                    currentPath = []; // Reset path to root
+                    return fileSystem; // Return root if path is broken
+                }
+            }
+            return currentDir;
+        }
+
+        // Function to display the contents of the current directory
+        function displayCurrentDirectory() {
+            const currentDir = getCurrentDirectory().children; // Get children of the current directory
+            fileListElement.innerHTML = ''; // Clear current list
+
+            // Hide file details and editor when navigating directories
+            hideFileDetails();
+            hideFileEditor();
+            activeFileName = null; // Clear active file state
+
+
+            // Update path display
+            pathDisplay.innerHTML = `Current Path: <span>/${currentPath.join('/')}${currentPath.length > 0 ? '/' : ''}</span>`;
+
+            // Update back button state
+            backButton.disabled = currentPath.length === 0;
+
+            const itemNames = Object.keys(currentDir);
+
+            if (itemNames.length === 0) {
+                fileListElement.innerHTML = '<li>Empty directory.</li>';
+                return;
+            }
+
+            // Sort items: folders first, then files, both alphabetically
+            itemNames.sort((a, b) => {
+                const aIsFolder = currentDir[a].type === 'folder';
+                const bIsFolder = currentDir[b].type === 'folder';
+
+                if (aIsFolder && !bIsFolder) return -1; // Folder comes before file
+                if (!aIsFolder && bIsFolder) return 1;  // File comes after folder
+                return a.localeCompare(b);       // Alphabetical sort
+            });
+
+
+            itemNames.forEach(itemName => {
+                const item = currentDir[itemName];
+                const isFolder = item.type === 'folder';
+
+                const listItem = document.createElement('li');
+
+                const itemNameSpan = document.createElement('span');
+                itemNameSpan.classList.add('item-name');
+
+                // Add icon and name
+                itemNameSpan.innerHTML = `<strong>${isFolder ? '📁' : '📄'}</strong>${itemName}`; // Folder or file emoji
+
+                // Add click behavior
+                if (isFolder) {
+                    // Navigate into folder on click
+                    listItem.addEventListener('click', () => navigateIntoFolder(itemName));
+                } else {
+                    // Show file details/versions on click
+                    listItem.addEventListener('click', () => showFileDetails(itemName));
+                }
+
+                const actionsDiv = document.createElement('div');
+                actionsDiv.classList.add('actions');
+
+                // Add delete button
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                // Add click listener for deleting files/folders
+                deleteButton.addEventListener('click', (event) => {
+                    console.log("Delete button clicked for item:", itemName); // Log click
+                    event.stopPropagation(); // Prevent list item click when deleting
+                    deleteItem(itemName);
+                });
+                actionsDiv.appendChild(deleteButton);
+
+
+                listItem.appendChild(itemNameSpan);
+                listItem.appendChild(actionsDiv);
+
+                fileListElement.appendChild(listItem);
+            });
+        }
+
+        // Function to navigate into a folder
+        function navigateIntoFolder(folderName) {
+            const currentDir = getCurrentDirectory();
+            if (currentDir.children && currentDir.children[folderName] && currentDir.children[folderName].type === 'folder') {
+                currentPath.push(folderName); // Add folder to path
+                displayCurrentDirectory(); // Display contents of the new directory
+            } else {
+                console.error(`Attempted to navigate into non-folder: ${folderName}`);
+            }
+        }
+
+        // Function to navigate back up one level
+        function navigateBack() {
+            if (currentPath.length > 0) {
+                currentPath.pop(); // Remove last folder from path
+                displayCurrentDirectory(); // Display contents of the parent directory
+            }
+        }
+
+        // Function to create a new folder
+        function createFolder() {
+            const folderName = newItemNameInput.value.trim();
+            if (!folderName) {
+                alert("Please enter a name for the new folder.");
+                return;
+            }
+
+            const currentDir = getCurrentDirectory().children;
+            if (currentDir.hasOwnProperty(folderName)) {
+                alert(`An item named "${folderName}" already exists in this directory.`);
+                return;
+            }
+
+            // Create the new folder object
+            currentDir[folderName] = { type: 'folder', children: {} };
+            saveFileSystem(); // Save the updated file system
+            displayCurrentDirectory(); // Refresh the display
+            newItemNameInput.value = ''; // Clear the input field
+        }
+
+        // Function to create a new text file (empty)
+        function createFile() {
+            const fileName = newItemNameInput.value.trim();
+            if (!fileName) {
+                alert("Please enter a name for the new file.");
+                return;
+            }
+
+            const currentDir = getCurrentDirectory().children;
+            if (currentDir.hasOwnProperty(fileName)) {
+                 alert(`An item named "${fileName}" already exists in this directory.`);
+                 return;
+             }
+
+            // Create the new file object with an empty versions array
+            currentDir[fileName] = { type: 'file', versions: [] };
+            saveFileSystem(); // Save the updated file system
+            displayCurrentDirectory(); // Refresh the display
+            newItemNameInput.value = ''; // Clear the input field
+        }
+
+         // Function to handle file upload (now handles multiple files)
+         function handleFileUpload(event) {
+             const files = event.target.files; // Get the list of selected files
+             if (files.length === 0) {
+                 console.log("No files selected for upload."); // Log if no file was selected
+                 return; // No files selected
+             }
+
+             const currentDir = getCurrentDirectory().children;
+             let filesProcessedCount = 0; // Track processed files
+
+
+             // Loop through each selected file
+             for (let i = 0; i < files.length; i++) {
+                 const file = files[i];
+                 const fileName = file.name;
+
+                 // Check if file name already exists
+                 if (currentDir.hasOwnProperty(fileName)) {
+                      alert(`Skipping upload for "${fileName}": An item with this name already exists.`);
+                      filesProcessedCount++; // Increment count even if skipped
+                       // If this is the last file, save and update display
+                       if (filesProcessedCount === files.length) {
+                           displayCurrentDirectory(); // Refresh display
+                       }
+                      continue; // Skip this file and go to the next one
+                 }
+
+                 const reader = new FileReader();
+
+                 // Determine how to read the file based on type (text or binary)
+                 // This is a simplified check. More robust type detection might be needed for edge cases.
+                 const isTextFile = file.type.startsWith('text/') ||
+                                    file.type === 'application/json' ||
+                                    fileName.endsWith('.csv') ||
+                                    fileName.endsWith('.xml') ||
+                                    fileName.endsWith('.html') ||
+                                    fileName.endsWith('.java') ||
+                                    fileName.endsWith('.py') ||
+                                    fileName.endsWith('.js') ||
+                                    fileName.endsWith('.rtf') || // Added RTF
+                                    fileName.endsWith('.odt'); // Added ODT
+
+
+                 reader.onload = (e) => {
+                     const fileContent = e.target.result; // Text or Data URL (Base64)
+
+                     // Create the new file object with the first version
+                     currentDir[fileName] = {
+                         type: 'file',
+                         versions: [{
+                             content: fileContent,
+                             timestamp: new Date().toISOString(),
+                             originalFileName: fileName, // Store original name and type
+                             originalFileType: file.type
+                         }]
+                     };
+
+                     filesProcessedCount++; // Increment count after successful read
+
+                     // If this is the last file, save and update display
+                     if (filesProcessedCount === files.length) {
+                          saveFileSystem(); // Save the updated file system
+                          displayCurrentDirectory(); // Refresh the display
+                           // Show a status message only after all are processed
+                          showStatus(`${filesProcessedCount - (files.length - Object.keys(currentDir).length)} file(s) uploaded and saved.`);
+                     }
+
+                 };
+
+                 reader.onerror = (e) => {
+                      console.error("Error reading file:", fileName, e);
+                      alert(`Error reading file "${fileName}".`);
+                      filesProcessedCount++; // Still increment count to know when done
+                       if (filesProcessedCount === files.length) {
+                           displayCurrentDirectory(); // Refresh display even if some failed
+                       }
+                 };
+
+
+                 if (isTextFile) {
+                     reader.readAsText(file); // Read as text
+                 } else {
+                     reader.readAsDataURL(file); // Read as Data URL (Base64) for binary files (images, docs, media, archives)
+                 }
+             }
+
+             // Clear the file input so the same file(s) can be selected again
+             uploadFileInput.value = '';
+         }
+
+
+        // Function to delete a file or folder
+        function deleteItem(itemName) {
+            console.log("Attempting to delete item:", itemName); // Log attempt
+            const currentDir = getCurrentDirectory().children;
+
+            // Check if the item exists in the current directory
+            if (!currentDir.hasOwnProperty(itemName)) {
+                console.error(`Item "${itemName}" not found in current directory for deletion.`);
+                // Optionally display an alert to the user
+                // alert(`Error: Item "${itemName}" not found.`);
+                return;
+            }
+
+            const itemToDelete = currentDir[itemName];
+
+            // Prevent deleting non-empty folders
+            if (itemToDelete.type === 'folder' && Object.keys(itemToDelete.children).length > 0) {
+                alert(`Folder "${itemName}" is not empty. Please delete its contents first.`);
+                console.log(`Deletion blocked: Folder "${itemName}" is not empty.`); // Log why blocked
+                return;
+            }
+
+            // Proceed with deletion
+            delete currentDir[itemName]; // Remove the item
+            saveFileSystem(); // Save the updated file system
+            displayCurrentDirectory(); // Refresh the display
+            console.log(`Item "${itemName}" deleted successfully.`); // Log success
+
+             // If the deleted item was the active file, hide details and editor
+             if (activeFileName === itemName) {
+                 hideFileDetails();
+                 hideFileEditor();
+                 activeFileName = null;
+             }
+        }
+
+        // Function to show file details and versions
+        function showFileDetails(fileName) {
+            const currentDir = getCurrentDirectory().children;
+            const file = currentDir[fileName];
+
+            if (file && file.type === 'file') {
+                activeFileName = fileName; // Set the active file
+                fileNameDisplay.textContent = `File: ${fileName}`;
+                displayFileVersions(file.versions); // Display the versions
+
+                fileDetailsElement.style.display = 'block'; // Show the details section
+                hideFileEditor(); // Hide the editor initially
+
+                 // Optional: Scroll to the file details
+                 fileDetailsElement.scrollIntoView({ behavior: 'smooth' });
+
+            } else {
+                 console.error(`Attempted to show details for non-file: ${fileName}`);
+                 hideFileDetails();
+                 hideFileEditor();
+                 activeFileName = null;
+            }
+        }
+
+        // Function to hide the file details section
+        function hideFileDetails() {
+            fileDetailsElement.style.display = 'none';
+            fileNameDisplay.textContent = '';
+            versionsListElement.innerHTML = '';
+        }
+
+
+        // Function to display the list of versions for the active file
+        function displayFileVersions(versions) {
+             versionsListElement.innerHTML = ''; // Clear current list
+
+             if (versions.length === 0) {
+                 versionsListElement.innerHTML = '<li>No versions saved yet.</li>';
+                 // Add a button to create the first version (for manually created text files)
+                 const createFirstVersionButton = document.createElement('button');
+                 createFirstVersionButton.textContent = 'Create First Version (Text)';
+                 createFirstVersionButton.style.marginTop = '10px';
+                 createFirstVersionButton.addEventListener('click', () => {
+                     // Load an empty editor to start
+                     openFileForEditing(activeFileName, '');
+                 });
+                 versionsListElement.appendChild(createFirstVersionButton);
+
+                 return;
+             }
+
+             // Display versions (most recent first)
+             versions.slice().reverse().forEach((version, index) => {
+                 const originalIndex = versions.length - 1 - index; // Calculate original index for deletion
+
+                 const listItem = document.createElement('li');
+
+                 const versionInfoSpan = document.createElement('span');
+                 versionInfoSpan.classList.add('version-info');
+                 // Display version number and timestamp
+                 versionInfoSpan.textContent = `Version ${versions.length - index} (Saved: ${new Date(version.timestamp).toLocaleString()})`;
+
+                 const versionActionsDiv = document.createElement('div');
+                 versionActionsDiv.classList.add('version-actions');
+
+                 // Load in Editor button (only for text-based content)
+                 // We assume content is text if it's not a Data URL
+                 if (version.originalFileType && version.originalFileType.startsWith('text/')) { // More robust check using stored type
+                     const loadButton = document.createElement('button');
+                     loadButton.classList.add('load-btn');
+                     loadButton.textContent = 'Load in Editor';
+                     loadButton.addEventListener('click', () => openFileForEditing(activeFileName, version.content));
+                     versionActionsDiv.appendChild(loadButton);
+                 } else if (version.originalFileName && (version.originalFileName.endsWith('.csv') || version.originalFileName.endsWith('.xml') || version.originalFileName.endsWith('.html') || version.originalFileName.endsWith('.java') || version.originalFileName.endsWith('.py') || version.originalFileName.endsWith('.js') || version.originalFileName.endsWith('.rtf') || version.originalFileName.endsWith('.odt')) && !version.content.startsWith('data:')) {
+                      // Fallback check for file extensions if fileType is generic or missing, AND confirm it's not a data URL
+                       const loadButton = document.createElement('button');
+                       loadButton.classList.add('load-btn');
+                       loadButton.textContent = 'Load in Editor';
+                       loadButton.addEventListener('click', () => openFileForEditing(activeFileName, version.content));
+                       versionActionsDiv.appendChild(loadButton);
+                 } else if (version.content && !version.content.startsWith('data:') && versions.length === 1) {
+                     // Simple check for manually created empty file, allow editing
+                     const loadButton = document.createElement('button');
+                      loadButton.classList.add('load-btn');
+                       loadButton.textContent = 'Load in Editor';
+                       loadButton.addEventListener('click', () => openFileForEditing(activeFileName, version.content));
+                       versionActionsDiv.appendChild(loadButton);
+                 }
+
+
+                 // Open in Browser button
+                 const openBrowserButton = document.createElement('button');
+                 openBrowserButton.classList.add('open-browser-btn');
+                 openBrowserButton.textContent = 'Open in Browser';
+                 openBrowserButton.addEventListener('click', () => openVersionInBrowser(version.content));
+                 versionActionsDiv.appendChild(openBrowserButton);
+
+                 // Download button
+                 const downloadButton = document.createElement('button');
+                 downloadButton.classList.add('download-btn');
+                 downloadButton.textContent = 'Download';
+                 downloadButton.addEventListener('click', () => downloadFileVersion(version));
+                 versionActionsDiv.appendChild(downloadButton);
+
+
+                 // Delete Version button
+                 const deleteButton = document.createElement('button');
+                 deleteButton.classList.add('delete-btn');
+                 deleteButton.textContent = 'Delete Version';
+                 // Add click listener for deleting versions
+                 deleteButton.addEventListener('click', (event) => {
+                      console.log("Delete version button clicked for file:", activeFileName, "version index:", originalIndex); // Log click
+                      event.stopPropagation(); // Prevent list item click
+                      deleteFileVersion(activeFileName, originalIndex);
+                 });
+                 versionActionsDiv.appendChild(deleteButton);
+
+
+                 listItem.appendChild(versionInfoSpan);
+                 listItem.appendChild(versionActionsDiv);
+
+                 versionsListElement.appendChild(listItem);
+             });
+
+              // Add a button to create a new version from current editor content
+              const createNewVersionButton = document.createElement('button');
+              createNewVersionButton.textContent = 'Save as New Version (from Editor)';
+              createNewVersionButton.style.marginTop = '10px';
+               // Only show if the active file is likely text-based or new
+               const activeFile = getCurrentDirectory().children[activeFileName];
+               const lastVersion = activeFile && activeFile.type === 'file' && activeFile.versions.length > 0 ? activeFile.versions[activeFile.versions.length - 1] : null;
+               const isActiveFileTextBased = !lastVersion || !lastVersion.content.startsWith('data:');
+
+               if (activeFile && activeFile.type === 'file' && isActiveFileTextBased) {
+                   createNewVersionButton.style.display = 'block'; // Show if text-based file is active
+                   createNewVersionButton.addEventListener('click', () => {
+                       // Check if editor is visible and has content
+                       if (fileContentEditor.style.display !== 'none' && fileContentEditor.value.trim() !== '') {
+                            saveNewVersion(activeFileName, fileContentEditor.value);
+                       } else {
+                            alert("Editor is empty or not visible. Load content first or use Upload File.");
+                       }
+                   });
+                   versionsListElement.appendChild(createNewVersionButton);
+               } else {
+                   createNewVersionButton.style.display = 'none'; // Hide if not text-based or no file active
+               }
+
+
+        }
+
+        // Function to open a file for editing (loads a specific version or empty)
+        function openFileForEditing(fileName, content = '') {
+             const currentDir = getCurrentDirectory().children;
+             const file = currentDir[fileName];
+
+             if (file && file.type === 'file') {
+                 // Check if the content is text-based before loading into editor
+                 if (content.startsWith('data:')) {
+                     alert("Cannot load binary file content into the text editor. Use 'Open in Browser' or 'Download'.");
+                     hideFileEditor(); // Ensure editor is hidden
+                     return;
+                 }
+
+                 activeFileName = fileName; // Set the active file
+                 fileContentEditor.value = content; // Load content into editor
+                 fileContentEditor.style.display = 'block'; // Show the editor
+                 saveFileContentButton.style.display = 'block'; // Show the save button
+
+                 // Hide file details temporarily while editing
+                 // hideFileDetails(); // Decided to keep details visible
+
+                 // Optional: Scroll to the editor
+                 fileContentEditor.scrollIntoView({ behavior: 'smooth' });
+
+             } else {
+                 console.error(`Attempted to open non-file for editing: ${fileName}`);
+                  hideFileEditor();
+             }
+         }
+
+
+        // Function to save the current editor content as a NEW version (for text files)
+        function saveNewVersion(fileName, content) {
+             const currentDir = getCurrentDirectory().children;
+             const file = currentDir[fileName];
+
+             if (file && file.type === 'file') {
+                  // Check if the current file is likely text-based before saving from editor
+                  const lastVersion = file.versions[file.versions.length - 1];
+                  const isTextBased = !lastVersion || !lastVersion.content.startsWith('data:');
+
+
+                  if (!isTextBased && fileContentEditor.style.display !== 'none') { // Also check if editor is even visible
+                      alert("Cannot save non-text file types from the editor. Use Upload File to add new versions of binary files.");
+                      return;
+                  }
+
+
+                 // Create a new version object
+                 const newVersion = {
+                     content: content,
+                     timestamp: new Date().toISOString(), // Use ISO string for consistent sorting
+                     originalFileName: fileName, // Store original name and type (can be inferred for text)
+                     originalFileType: lastVersion ? lastVersion.originalFileType : 'text/plain' // Infer type if first version
+                 };
+
+                 file.versions.push(newVersion); // Add the new version to the array
+                 saveFileSystem(); // Save the updated file system
+
+                 showFileDetails(fileName); // Refresh the versions list display
+                 showStatus(`New version saved for "${fileName}".`);
+
+             } else {
+                 console.error(`Attempted to save version for non-file: ${fileName}`);
+             }
+        }
+
+         // Function to delete a specific file version
+         function deleteFileVersion(fileName, versionIndex) {
+             console.log("Attempting to delete version for file:", fileName, "index:", versionIndex); // Log attempt
+             if (confirm(`Are you sure you want to delete Version ${versionIndex + 1} of "${fileName}"?`)) {
+                 const currentDir = getCurrentDirectory().children;
+                 const file = currentDir[fileName];
+
+                 if (file && file.type === 'file' && file.versions[versionIndex]) {
+                      if (file.versions.length === 1) {
+                          alert("Cannot delete the last version of a file. Delete the file instead.");
+                          console.log("Deletion blocked: Cannot delete the last version."); // Log why blocked
+                          return;
+                      }
+
+                     file.versions.splice(versionIndex, 1); // Remove the version
+                     saveFileSystem(); // Save the updated file system
+                     showFileDetails(fileName); // Refresh the versions list display
+                     showStatus(`Version deleted for "${fileName}".`);
+                     console.log(`Version ${versionIndex + 1} deleted successfully for "${fileName}".`); // Log success
+
+
+                     // If the editor is open for this file, re-display versions and maybe clear editor
+                     if (activeFileName === fileName && fileContentEditor.style.display !== 'none') {
+                         // Consider if the deleted version was the one in the editor
+                         // For simplicity, we'll just update the list. Editor content remains until loaded/cleared.
+                     }
+
+                 } else {
+                      console.error(`Attempted to delete invalid version for file: ${fileName}, index: ${versionIndex}`);
+                 }
+             }
+         }
+
+         // Function to download a specific file version
+         function downloadFileVersion(version) {
+             console.log("Attempting to download version:", version.originalFileName); // Log attempt
+             const link = document.createElement('a');
+             // Use the content directly if it's a Data URL
+             // Otherwise, create a Blob for text content
+             if (version.content.startsWith('data:')) {
+                 link.href = version.content;
+             } else {
+                  const blob = new Blob([version.content], { type: version.originalFileType || 'text/plain' });
+                  link.href = URL.createObjectURL(blob);
+             }
+
+             link.download = version.originalFileName || 'download'; // Use original name if available
+
+             document.body.appendChild(link); // Append link to body
+             link.click(); // Simulate click
+             document.body.removeChild(link); // Remove link
+             showStatus(`Downloading "${version.originalFileName || 'file'}".`);
+             console.log(`Download triggered for "${version.originalFileName || 'file'}".`); // Log trigger
+
+             // Clean up the Blob URL if created (only for text content)
+             if (!version.content.startsWith('data:')) {
+                 URL.revokeObjectURL(link.href);
+             }
+         }
+
+
+        // Function to hide the file content editor
+        function hideFileEditor() {
+             fileContentEditor.style.display = 'none';
+             saveFileContentButton.style.display = 'none';
+             fileContentEditor.value = ''; // Clear editor content
+             // We don't reset activeFileName here, as we might still be viewing details
+        }
+
+        // Function to open a specific version's content in the browser app
+        function openVersionInBrowser(content) {
+             console.log("Attempting to open content in browser."); // Log attempt
+             // 1. Store the content in localStorage
+             setBrowserLoadContent(content);
+
+             // 2. Open the browser app's URL in a new tab/window
+             //    You need to replace 'YOUR_BROWSER_APP_URL_HERE' with the actual URL of your browser app on GitHub Pages
+             const browserAppUrl = 'YOUR_BROWSER_APP_URL_HERE'; // <-- **IMPORTANT: Replace this URL**
+
+             if (browserAppUrl === 'YOUR_BROWSER_APP_URL_HERE') {
+                 alert("Please replace 'YOUR_BROWSER_APP_URL_HERE' in the code with your actual browser app URL.");
+                 console.error("Browser app URL not set."); // Log error
+                 return;
+             }
+
+             window.open(browserAppUrl, '_blank'); // Open in a new tab
+             console.log("Opened browser app URL:", browserAppUrl); // Log URL opened
+
+             // Note: The browser app code will check localStorage on load
+             // and load this content into an iframe.
+        }
+
+
+        // Function to display a temporary status message (optional)
+        function showStatus(message, duration = 3000) {
+            // You would need a status message element in your HTML for this
+            // For now, we'll just log to console
+            console.log("Status:", message);
+            // If you add a status message div, uncomment this:
+            /*
+            const statusElement = document.getElementById('statusMessage'); // Assuming you add this ID
+            if (statusElement) {
+                 statusElement.textContent = message;
+                 setTimeout(() => { statusElement.textContent = ''; }, duration);
+            }
+            */
+        }
+
+
+        // --- Event Listeners ---
+        backButton.addEventListener('click', navigateBack);
+        createFolderButton.addEventListener('click', createFolder);
+        createFileButton.addEventListener('click', createFile);
+        uploadFileInput.addEventListener('change', handleFileUpload); // Listen for file selection on the input
+        saveFileContentButton.addEventListener('click', () => {
+             // When saving from the editor, save as a NEW version
+             if (activeFileName && fileContentEditor.style.display !== 'none') {
+                  // Check if the file is text-based before saving from editor
+                  const currentDir = getCurrentDirectory().children;
+                  const file = currentDir[activeFileName];
+                   if (file && file.type === 'file') {
+                       const lastVersion = file.versions[file.versions.length - 1];
+                       const isTextBased = !lastVersion || !lastVersion.content.startsWith('data:'); // Check last version or if new file
+
+                       if (isTextBased) { // Only save from editor if the file type is text-based
+                            saveNewVersion(activeFileName, fileContentEditor.value);
+                       } else {
+                            alert("Cannot save non-text file types from the editor. Use Upload File to add new versions of binary files.");
+                       }
+                   } else {
+                        console.warn("Save button clicked, but active item is not a file.");
+                   }
+             } else {
+                  console.warn("Save button clicked, but no active file or editor not visible.");
+             }
+        });
+
+
+        // Allow creating items by pressing Enter in the input field
+        newItemNameInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                // We need a way to know if the user intends to create a folder or a file.
+                // For simplicity, let's require clicking the specific button.
+                // If you wanted Enter to work, you'd need separate input fields or a toggle.
+                 // alert("Please click 'Create Folder' or 'Create Text File' button."); // Removed this alert to avoid annoyance
+            }
+        });
+
+
+        // --- Initialization ---
+
+        // Load the file system from localStorage when the page loads
+        window.addEventListener('load', () => {
+            loadFileSystem();
+            displayCurrentDirectory(); // Display the initial directory (root)
+        });
+
+        // Optional: Save file system before the user leaves the page
+        window.addEventListener('beforeunload', saveFileSystem);
+
+
+    </script>
+
+</body>
+</html>
