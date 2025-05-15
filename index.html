@@ -135,6 +135,14 @@
              background-color: #5a35a1;
          }
 
+         #checkEditorSaveButton { /* New button style */
+             background-color: #ff9800; /* Orange */
+             color: white;
+         }
+          #checkEditorSaveButton:hover {
+              background-color: #f57c00;
+          }
+
 
         .file-list {
             list-style: none;
@@ -258,6 +266,15 @@
             background-color: #520dc2;
          }
 
+         #versionsList li .version-actions .open-editor-btn { /* New Editor button */
+            background-color: #ffc107; /* Yellow */
+            color: #333; /* Dark text for contrast */
+         }
+          #versionsList li .version-actions .open-editor-btn:hover {
+             background-color: #e0a800;
+          }
+
+
          #versionsList li .version-actions .download-btn { /* New Download button */
             background-color: #007bff; /* Blue */
             color: white;
@@ -276,35 +293,8 @@
         }
 
 
-        /* File content editor */
-        #fileContentEditor {
-             width: 100%;
-             min-height: 200px;
-             padding: 10px;
-             border: 1px solid #ccc;
-             border-radius: 5px;
-             font-size: 1em;
-             margin-top: 15px;
-             display: none; /* Hidden by default */
-             resize: vertical;
-             font-family: 'Inter', sans-serif;
-        }
-
-        #saveFileContentButton {
-             display: none; /* Hidden by default */
-             margin-top: 10px;
-             padding: 8px 15px;
-             background-color: #28a745; /* Green */
-             color: white;
-             border: none;
-             border-radius: 5px;
-             cursor: pointer;
-             transition: background-color 0.2s ease;
-             font-family: 'Inter', sans-serif;
-        }
-        #saveFileContentButton:hover {
-             background-color: #218838;
-        }
+        /* File content editor (hidden by default in this app) */
+        /* This editor is only used in the Rich Text Editor app */
 
 
         /* Responsive adjustments */
@@ -322,6 +312,9 @@
              .controls input[type="text"], .controls button, .upload-file-container button {
                 width: 100%; /* Full width controls */
                 box-sizing: border-box;
+             }
+             #checkEditorSaveButton {
+                 width: 100%; /* Full width */
              }
              .file-list li {
                 flex-direction: column; /* Stack name and actions */
@@ -371,7 +364,7 @@
                  <button>Upload File</button>
                  <input type="file" id="uploadFileInput" multiple>
              </div>
-        </div>
+             <button id="checkEditorSaveButton">Check for Editor Saves</button> </div>
 
         <ul id="fileList" class="file-list">
             </ul>
@@ -382,11 +375,7 @@
                 </ul>
         </div>
 
-
-        <textarea id="fileContentEditor" placeholder="Edit file content..."></textarea>
-        <button id="saveFileContentButton">Save File Content</button>
-
-    </div>
+        </div>
 
     <script>
         const pathDisplay = document.getElementById('pathDisplay');
@@ -395,15 +384,20 @@
         const createFolderButton = document.getElementById('createFolderButton');
         const createFileButton = document.getElementById('createFileButton');
         const uploadFileInput = document.getElementById('uploadFileInput');
+        const checkEditorSaveButton = document.getElementById('checkEditorSaveButton'); // New
         const fileListElement = document.getElementById('fileList');
         const fileDetailsElement = document.getElementById('fileDetails');
         const fileNameDisplay = document.getElementById('fileNameDisplay');
         const versionsListElement = document.getElementById('versionsList');
-        const fileContentEditor = document.getElementById('fileContentEditor');
-        const saveFileContentButton = document.getElementById('saveFileContentButton');
+        // const fileContentEditor = document.getElementById('fileContentEditor'); // Removed
+        // const saveFileContentButton = document.getElementById('saveFileContentButton'); // Removed
 
         const FILE_SYSTEM_STORAGE_KEY = 'localFileSystem';
         const BROWSER_LOAD_KEY = 'browserLoadContent'; // Key for passing content to browser
+        const EDITOR_LOAD_KEY = 'editorLoadContent'; // New: Key for passing content to editor
+        const EDITOR_SAVE_KEY = 'editorSaveContent'; // New: Key for receiving content from editor
+        const EDITOR_FILE_INFO_KEY = 'editorFileInfo'; // New: Key for passing file info to editor
+
 
         // --- Data Structure ---
         // Represents the file system tree.
@@ -425,6 +419,25 @@
 
 
         // --- Local Storage Functions ---
+        function loadFromLocalStorage(key, defaultValue) {
+            try {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : defaultValue;
+            } catch (e) {
+                console.error(`Error loading from localStorage key "${key}":`, e);
+                return defaultValue;
+            }
+        }
+
+        function saveToLocalStorage(key, data) {
+            try {
+                localStorage.setItem(key, JSON.stringify(data));
+            } catch (e) {
+                 console.error(`Error saving to localStorage key "${key}":`, e);
+            }
+        }
+
+
         function loadFileSystem() {
             try {
                 const savedFileSystem = localStorage.getItem(FILE_SYSTEM_STORAGE_KEY);
@@ -448,24 +461,82 @@
         }
 
         function saveFileSystem() {
-            try {
-                localStorage.setItem(FILE_SYSTEM_STORAGE_KEY, JSON.stringify(fileSystem));
-                console.log('File system saved.');
-            } catch (e) {
-                console.error('Error saving file system to localStorage:', e);
-                // Could add a user-facing message here
-            }
+            saveToLocalStorage(FILE_SYSTEM_STORAGE_KEY, fileSystem);
         }
 
         // Function to set content for the browser to load
         function setBrowserLoadContent(content) {
-             try {
-                 localStorage.setItem(BROWSER_LOAD_KEY, content);
-                 console.log('Content set for browser load.');
-             } catch (e) {
-                 console.error('Error setting browser load content:', e);
-             }
+             saveToLocalStorage(BROWSER_LOAD_KEY, content);
         }
+
+        // Function to set content and file info for the editor to load
+        function setEditorLoadContent(content, fileName, filePath) {
+             saveToLocalStorage(EDITOR_LOAD_KEY, content);
+             saveToLocalStorage(EDITOR_FILE_INFO_KEY, { fileName: fileName, filePath: filePath });
+             console.log('Content and file info set for editor load.');
+        }
+
+         // Function to check for saved content from the editor
+         function checkForEditorSave() {
+             console.log("Checking for editor saves...");
+             const savedContent = loadFromLocalStorage(EDITOR_SAVE_KEY, null);
+             const fileInfo = loadFromLocalStorage(EDITOR_FILE_INFO_KEY, null);
+
+             if (savedContent !== null && fileInfo !== null) {
+                 console.log("Editor save found:", fileInfo.fileName);
+                 // Find the file in the file system based on the saved path and name
+                 let targetDir = fileSystem;
+                 let pathIsValid = true;
+                 for (const folderName of fileInfo.filePath) {
+                     if (targetDir.children && targetDir.children[folderName] && targetDir.children[folderName].type === 'folder') {
+                         targetDir = targetDir.children[folderName];
+                     } else {
+                         pathIsValid = false;
+                         break;
+                     }
+                 }
+
+                 if (pathIsValid && targetDir.children && targetDir.children[fileInfo.fileName] && targetDir.children[fileInfo.fileName].type === 'file') {
+                     const file = targetDir.children[fileInfo.fileName];
+
+                     // Add the new content as a new version
+                      const newVersion = {
+                          content: savedContent,
+                          timestamp: new Date().toISOString(),
+                          originalFileName: fileInfo.fileName,
+                          // Attempt to preserve original file type if possible, otherwise default to text
+                          originalFileType: file.versions.length > 0 ? file.versions[file.versions.length - 1].originalFileType : 'text/html' // Assuming editor saves HTML
+                      };
+                     file.versions.push(newVersion);
+                     saveFileSystem();
+                     showStatus(`Saved new version for "${fileInfo.fileName}" from editor.`);
+
+                     // If we are currently viewing this file's details, refresh the display
+                     if (activeFileName === fileInfo.fileName && JSON.stringify(currentPath) === JSON.stringify(fileInfo.filePath)) {
+                         displayFileVersions(file.versions);
+                     }
+
+
+                 } else {
+                     console.error("Could not find the target file for saving from editor:", fileInfo);
+                     alert(`Error: Could not find the original file "${fileInfo.fileName}" to save the editor content.`);
+                 }
+
+                 // Clear the localStorage keys after processing
+                 localStorage.removeItem(EDITOR_SAVE_KEY);
+                 localStorage.removeItem(EDITOR_FILE_INFO_KEY);
+                 console.log("Editor save keys cleared from localStorage.");
+
+             } else if (savedContent !== null || fileInfo !== null) {
+                 // This case indicates an incomplete save state
+                 console.warn("Incomplete editor save data found in localStorage. Clearing.");
+                 localStorage.removeItem(EDITOR_SAVE_KEY);
+                 localStorage.removeItem(EDITOR_FILE_INFO_KEY);
+             } else {
+                 console.log("No editor saves found.");
+                 showStatus("No pending saves from the editor.");
+             }
+         }
 
 
         // --- File System Operations ---
@@ -494,7 +565,7 @@
 
             // Hide file details and editor when navigating directories
             hideFileDetails();
-            hideFileEditor();
+            // hideFileEditor(); // Editor is no longer in this app
             activeFileName = null; // Clear active file state
 
 
@@ -749,7 +820,7 @@
              // If the deleted item was the active file, hide details and editor
              if (activeFileName === itemName) {
                  hideFileDetails();
-                 hideFileEditor();
+                 // hideFileEditor(); // Editor is not here
                  activeFileName = null;
              }
         }
@@ -765,7 +836,7 @@
                 displayFileVersions(file.versions); // Display the versions
 
                 fileDetailsElement.style.display = 'block'; // Show the details section
-                hideFileEditor(); // Hide the editor initially
+                // hideFileEditor(); // Editor is not here
 
                  // Optional: Scroll to the file details
                  fileDetailsElement.scrollIntoView({ behavior: 'smooth' });
@@ -773,7 +844,7 @@
             } else {
                  console.error(`Attempted to show details for non-file: ${fileName}`);
                  hideFileDetails();
-                 hideFileEditor();
+                 // hideFileEditor(); // Editor is not here
                  activeFileName = null;
             }
         }
@@ -797,8 +868,8 @@
                  createFirstVersionButton.textContent = 'Create First Version (Text)';
                  createFirstVersionButton.style.marginTop = '10px';
                  createFirstVersionButton.addEventListener('click', () => {
-                     // Load an empty editor to start
-                     openFileForEditing(activeFileName, '');
+                     // Load an empty editor to start - Need to open editor app for this
+                      openVersionInEditor(''); // Open editor with empty content
                  });
                  versionsListElement.appendChild(createFirstVersionButton);
 
@@ -819,28 +890,28 @@
                  const versionActionsDiv = document.createElement('div');
                  versionActionsDiv.classList.add('version-actions');
 
-                 // Load in Editor button (only for text-based content)
+                 // Open in Editor button (only for text-based content)
                  // We assume content is text if it's not a Data URL
                  if (version.originalFileType && version.originalFileType.startsWith('text/')) { // More robust check using stored type
-                     const loadButton = document.createElement('button');
-                     loadButton.classList.add('load-btn');
-                     loadButton.textContent = 'Load in Editor';
-                     loadButton.addEventListener('click', () => openFileForEditing(activeFileName, version.content));
-                     versionActionsDiv.appendChild(loadButton);
+                     const openEditorButton = document.createElement('button'); // Renamed from loadButton
+                     openEditorButton.classList.add('open-editor-btn'); // New class
+                     openEditorButton.textContent = 'Open in Editor';
+                     openEditorButton.addEventListener('click', () => openVersionInEditor(version.content)); // Pass content
+                     versionActionsDiv.appendChild(openEditorButton);
                  } else if (version.originalFileName && (version.originalFileName.endsWith('.csv') || version.originalFileName.endsWith('.xml') || version.originalFileName.endsWith('.html') || version.originalFileName.endsWith('.java') || version.originalFileName.endsWith('.py') || version.originalFileName.endsWith('.js') || version.originalFileName.endsWith('.rtf') || version.originalFileName.endsWith('.odt')) && !version.content.startsWith('data:')) {
                       // Fallback check for file extensions if fileType is generic or missing, AND confirm it's not a data URL
-                       const loadButton = document.createElement('button');
-                       loadButton.classList.add('load-btn');
-                       loadButton.textContent = 'Load in Editor';
-                       loadButton.addEventListener('click', () => openFileForEditing(activeFileName, version.content));
-                       versionActionsDiv.appendChild(loadButton);
+                       const openEditorButton = document.createElement('button');
+                       openEditorButton.classList.add('open-editor-btn');
+                       openEditorButton.textContent = 'Open in Editor';
+                       openEditorButton.addEventListener('click', () => openVersionInEditor(version.content));
+                       versionActionsDiv.appendChild(openEditorButton);
                  } else if (version.content && !version.content.startsWith('data:') && versions.length === 1) {
                      // Simple check for manually created empty file, allow editing
-                     const loadButton = document.createElement('button');
-                      loadButton.classList.add('load-btn');
-                       loadButton.textContent = 'Load in Editor';
-                       loadButton.addEventListener('click', () => openFileForEditing(activeFileName, version.content));
-                       versionActionsDiv.appendChild(loadButton);
+                     const openEditorButton = document.createElement('button');
+                      openEditorButton.classList.add('open-editor-btn');
+                       openEditorButton.textContent = 'Open in Editor';
+                       openEditorButton.addEventListener('click', () => openVersionInEditor(version.content));
+                       versionActionsDiv.appendChild(openEditorButton);
                  }
 
 
@@ -879,98 +950,50 @@
              });
 
               // Add a button to create a new version from current editor content
-              const createNewVersionButton = document.createElement('button');
-              createNewVersionButton.textContent = 'Save as New Version (from Editor)';
-              createNewVersionButton.style.marginTop = '10px';
-               // Only show if the active file is likely text-based or new
-               const activeFile = getCurrentDirectory().children[activeFileName];
-               const lastVersion = activeFile && activeFile.type === 'file' && activeFile.versions.length > 0 ? activeFile.versions[activeFile.versions.length - 1] : null;
-               const isActiveFileTextBased = !lastVersion || !lastVersion.content.startsWith('data:');
-
-               if (activeFile && activeFile.type === 'file' && isActiveFileTextBased) {
-                   createNewVersionButton.style.display = 'block'; // Show if text-based file is active
-                   createNewVersionButton.addEventListener('click', () => {
-                       // Check if editor is visible and has content
-                       if (fileContentEditor.style.display !== 'none' && fileContentEditor.value.trim() !== '') {
-                            saveNewVersion(activeFileName, fileContentEditor.value);
-                       } else {
-                            alert("Editor is empty or not visible. Load content first or use Upload File.");
-                       }
-                   });
-                   versionsListElement.appendChild(createNewVersionButton);
-               } else {
-                   createNewVersionButton.style.display = 'none'; // Hide if not text-based or no file active
-               }
-
+              // This button is now handled in the Rich Text Editor app
 
         }
 
-        // Function to open a file for editing (loads a specific version or empty)
+        // Function to open a file for editing (opens the editor app)
         function openFileForEditing(fileName, content = '') {
+             // This function is now primarily used to trigger opening the external editor app
+             // It's called by the "Create First Version (Text)" button for new text files
+
              const currentDir = getCurrentDirectory().children;
              const file = currentDir[fileName];
 
              if (file && file.type === 'file') {
-                 // Check if the content is text-based before loading into editor
+                 // Check if the content is text-based before attempting to open in editor
                  if (content.startsWith('data:')) {
-                     alert("Cannot load binary file content into the text editor. Use 'Open in Browser' or 'Download'.");
-                     hideFileEditor(); // Ensure editor is hidden
+                     alert("Cannot open binary file content in the text editor. Use 'Open in Browser' or 'Download'.");
                      return;
                  }
 
-                 activeFileName = fileName; // Set the active file
-                 fileContentEditor.value = content; // Load content into editor
-                 fileContentEditor.style.display = 'block'; // Show the editor
-                 saveFileContentButton.style.display = 'block'; // Show the save button
+                 // Pass content and file info to localStorage
+                 setEditorLoadContent(content, fileName, currentPath);
 
-                 // Hide file details temporarily while editing
-                 // hideFileDetails(); // Decided to keep details visible
+                 // Open the Rich Text Editor app's URL
+                 const editorAppUrl = 'YOUR_RICH_TEXT_EDITOR_APP_URL_HERE'; // <-- **IMPORTANT: Replace this URL**
 
-                 // Optional: Scroll to the editor
-                 fileContentEditor.scrollIntoView({ behavior: 'smooth' });
+                 if (editorAppUrl === 'YOUR_RICH_TEXT_EDITOR_APP_URL_HERE') {
+                     alert("Please replace 'YOUR_RICH_TEXT_EDITOR_APP_URL_HERE' in the code with your actual Rich Text Editor app URL.");
+                     console.error("Editor app URL not set.");
+                     return;
+                 }
+
+                 window.open(editorAppUrl, '_blank'); // Open in a new tab
+                 console.log("Opened editor app URL:", editorAppUrl);
+
 
              } else {
                  console.error(`Attempted to open non-file for editing: ${fileName}`);
-                  hideFileEditor();
              }
          }
 
 
         // Function to save the current editor content as a NEW version (for text files)
-        function saveNewVersion(fileName, content) {
-             const currentDir = getCurrentDirectory().children;
-             const file = currentDir[fileName];
+        // This function is now handled in the Rich Text Editor app
 
-             if (file && file.type === 'file') {
-                  // Check if the current file is likely text-based before saving from editor
-                  const lastVersion = file.versions[file.versions.length - 1];
-                  const isTextBased = !lastVersion || !lastVersion.content.startsWith('data:');
-
-
-                  if (!isTextBased && fileContentEditor.style.display !== 'none') { // Also check if editor is even visible
-                      alert("Cannot save non-text file types from the editor. Use Upload File to add new versions of binary files.");
-                      return;
-                  }
-
-
-                 // Create a new version object
-                 const newVersion = {
-                     content: content,
-                     timestamp: new Date().toISOString(), // Use ISO string for consistent sorting
-                     originalFileName: fileName, // Store original name and type (can be inferred for text)
-                     originalFileType: lastVersion ? lastVersion.originalFileType : 'text/plain' // Infer type if first version
-                 };
-
-                 file.versions.push(newVersion); // Add the new version to the array
-                 saveFileSystem(); // Save the updated file system
-
-                 showFileDetails(fileName); // Refresh the versions list display
-                 showStatus(`New version saved for "${fileName}".`);
-
-             } else {
-                 console.error(`Attempted to save version for non-file: ${fileName}`);
-             }
-        }
 
          // Function to delete a specific file version
          function deleteFileVersion(fileName, versionIndex) {
@@ -991,13 +1014,6 @@
                      showFileDetails(fileName); // Refresh the versions list display
                      showStatus(`Version deleted for "${fileName}".`);
                      console.log(`Version ${versionIndex + 1} deleted successfully for "${fileName}".`); // Log success
-
-
-                     // If the editor is open for this file, re-display versions and maybe clear editor
-                     if (activeFileName === fileName && fileContentEditor.style.display !== 'none') {
-                         // Consider if the deleted version was the one in the editor
-                         // For simplicity, we'll just update the list. Editor content remains until loaded/cleared.
-                     }
 
                  } else {
                       console.error(`Attempted to delete invalid version for file: ${fileName}, index: ${versionIndex}`);
@@ -1033,12 +1049,9 @@
          }
 
 
-        // Function to hide the file content editor
+        // Function to hide the file content editor (not in this app)
         function hideFileEditor() {
-             fileContentEditor.style.display = 'none';
-             saveFileContentButton.style.display = 'none';
-             fileContentEditor.value = ''; // Clear editor content
-             // We don't reset activeFileName here, as we might still be viewing details
+             // This function is no longer needed in the File System app
         }
 
         // Function to open a specific version's content in the browser app
@@ -1086,28 +1099,7 @@
         createFolderButton.addEventListener('click', createFolder);
         createFileButton.addEventListener('click', createFile);
         uploadFileInput.addEventListener('change', handleFileUpload); // Listen for file selection on the input
-        saveFileContentButton.addEventListener('click', () => {
-             // When saving from the editor, save as a NEW version
-             if (activeFileName && fileContentEditor.style.display !== 'none') {
-                  // Check if the file is text-based before saving from editor
-                  const currentDir = getCurrentDirectory().children;
-                  const file = currentDir[activeFileName];
-                   if (file && file.type === 'file') {
-                       const lastVersion = file.versions[file.versions.length - 1];
-                       const isTextBased = !lastVersion || !lastVersion.content.startsWith('data:'); // Check last version or if new file
-
-                       if (isTextBased) { // Only save from editor if the file type is text-based
-                            saveNewVersion(activeFileName, fileContentEditor.value);
-                       } else {
-                            alert("Cannot save non-text file types from the editor. Use Upload File to add new versions of binary files.");
-                       }
-                   } else {
-                        console.warn("Save button clicked, but active item is not a file.");
-                   }
-             } else {
-                  console.warn("Save button clicked, but no active file or editor not visible.");
-             }
-        });
+        checkEditorSaveButton.addEventListener('click', checkForEditorSave); // New listener
 
 
         // Allow creating items by pressing Enter in the input field
